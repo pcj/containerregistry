@@ -22,7 +22,7 @@ class Token(docker_creds.SchemeProvider):
   """Implementation for providing a transaction's X-Docker-Token as creds."""
 
   def __init__(self, token):
-    super(Token, self).__init__('Token')
+    super(Token, self).__init__('access_token')
     self._token = token
 
   @property
