@@ -293,12 +293,16 @@ class Transport(object):
                                   (resp.status, content))
 
     wrapper_object = json.loads(content)
-    _CheckState('token' in wrapper_object,
-                'Malformed JSON response: %s' % content)
+    token = wrapper_object.get("token")
+    if not token:
+      token = wrapper_object.get("access_token")
+    
+    _CheckState(len(token) > 0,
+                'Malformed JSON response (expected response to include token or access_token): %s' % content)
 
     with self._lock:
       # We have successfully reauthenticated.
-      self._creds = v2_2_creds.Bearer(wrapper_object['token'])
+      self._creds = v2_2_creds.Bearer(token)
 
   # pylint: disable=invalid-name
   def Request(self,
