@@ -297,7 +297,7 @@ class Transport(object):
     if not token:
       token = wrapper_object.get("access_token")
     
-    _CheckState(len(token) > 0,
+    _CheckState(token is not None and len(token) > 0,
                 'Malformed JSON response (expected response to include token or access_token): %s' % content)
 
     with self._lock:
