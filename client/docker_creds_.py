@@ -219,23 +219,27 @@ def _GetUserHomeDir():
     return os.path.expanduser('~')
 
 
-def _GetConfigDirectory():
-  # Return the value of $DOCKER_CONFIG, if it exists, otherwise ~/.docker
-  # see https://github.com/docker/docker/blob/master/cliconfig/config.go
-  if os.environ.get('DOCKER_CONFIG') is not None:
-    return os.environ.get('DOCKER_CONFIG')
-  else:
-    return os.path.join(_GetUserHomeDir(), '.docker')
-
-
 class _DefaultKeychain(Keychain):
   """This implements the default docker credential resolution."""
+
+
+  def GetConfigDirectory(config_dir):
+    # If the argument is defined, use that.  Otherwise follow standard protocol.
+    if config_dir is not None:
+      return config_dir
+    # Return the value of $DOCKER_CONFIG, if it exists, otherwise ~/.docker
+    # see https://github.com/docker/docker/blob/master/cliconfig/config.go
+    if os.environ.get('DOCKER_CONFIG') is not None:
+      return os.environ.get('DOCKER_CONFIG')
+    else:
+      return os.path.join(_GetUserHomeDir(), '.docker')
+
 
   def Resolve(self, name):
     # TODO(user): Consider supporting .dockercfg, which was used prior
     # to Docker 1.7 and consisted of just the contents of 'auths' below.
     logging.info('Loading Docker credentials for repository %r', str(name))
-    config_file = os.path.join(_GetConfigDirectory(), 'config.json')
+    config_file = os.path.join(self.GetConfigDirectory(), 'config.json')
     try:
       with io.open(config_file, u'r', encoding='utf8') as reader:
         cfg = json.loads(reader.read())
@@ -272,6 +276,30 @@ class _DefaultKeychain(Keychain):
               json.dumps(entry))
 
     return Anonymous()
+
+
+class CustomKeychain(_DefaultKeychain):
+  "Keychain implementation that explicitly names the config directory"
+
+
+  def __init__(self, config_dir = None):
+    """Constructor.
+
+    Args: 
+      config_dir: filesystem path where the standard docker configuration files
+        are located.  
+    """
+    super(_DefaultKeychain, self).__init__("does not matter", "does not matter")
+    if not os.path.exists(config_dir):
+      raise Exception('Config directory not found: ' + config_dir)
+    if os.path.isfile(config_dir):
+      raise Exception('Config path should be a directory (not a file): ' + config_dir)
+    self._config_dir = config_dir
+
+
+  def GetConfigDirectory(config_dir):
+    """Override."""
+    return self._config_dir 
 
 
 # pylint: disable=invalid-name

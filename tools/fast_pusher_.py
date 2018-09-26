@@ -56,6 +56,11 @@ parser.add_argument(
     help='The path to the file storing the image config.')
 
 parser.add_argument(
+    '--client-config',
+    action='store',
+    help='The path to the directory where the client configuration files are located.  Overiddes the value from DOCKER_CONFIG.')
+
+parser.add_argument(
     '--manifest',
     action='store',
     required=False,
@@ -148,6 +153,12 @@ def main():
     logging.fatal('--digest and --layer must have matching lengths.')
     sys.exit(1)
 
+  # If the (optional) client-config is set, use a custom keychain rather than
+  # the default
+  keychain = docker_creds.DefaultKeychain
+  if args.client_config:
+    keychain = docker_creds.CustomKeychain(args.client_config)
+
   retry_factory = retry.Factory()
   retry_factory = retry_factory.WithSourceTransportCallable(httplib2.Http)
   transport = transport_pool.Http(retry_factory.Build, size=_THREADS)
@@ -161,7 +172,7 @@ def main():
     # Resolve the appropriate credential to use based on the standard Docker
     # client logic.
     try:
-      creds = docker_creds.DefaultKeychain.Resolve(name)
+      creds = keychain.Resolve(name)
     # pylint: disable=broad-except
     except Exception as e:
       logging.fatal('Error resolving credentials for %s: %s', name, e)
